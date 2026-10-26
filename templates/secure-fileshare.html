@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VaultDrop — Secure File Sharing</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="static/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body>
+  <div class="orb2"></div>
+
+  <header>
+    <div class="logo">
+      <div class="logo-icon"><i class="fas fa-lock"></i></div>
+      Vault<span>Drop</span>
+    </div>
+    <div class="badge">AES-256 ENCRYPTED</div>
+  </header>
+
+  <main>
+    <div class="hero">
+      <h1>Share Files<br><span class="hl">Without Fear</span></h1>
+      <p>Upload, encrypt, and share your files using a one-time access code. Only the right code unlocks the file.</p>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('upload')"><i class="fas fa-upload"></i> Upload File</button>
+      <button class="tab" onclick="switchTab('download')"><i class="fas fa-download"></i> Download File</button>
+      <button class="tab" onclick="switchTab('vault')"><i class="fas fa-folder-open"></i> My Vault</button>
+    </div>
+
+    <!-- UPLOAD PANEL -->
+    <div class="panel active" id="panel-upload">
+      <div class="card">
+        <div class="steps">
+          <div class="step" id="step1">
+            <div class="step-num">1</div> Select File
+          </div>
+          <div class="step-line"></div>
+          <div class="step" id="step2">
+            <div class="step-num">2</div> Encrypt
+          </div>
+          <div class="step-line"></div>
+          <div class="step" id="step3">
+            <div class="step-num">3</div> Get Code
+          </div>
+        </div>
+
+        <div class="dropzone" id="dropzone" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)"
+          ondrop="onDrop(event)">
+          <input type="file" id="fileInput" onchange="onFileSelect(event)">
+          <span class="drop-icon"><i class="fas fa-file-upload"></i></span>
+          <div class="drop-title">Drop your file here</div>
+          <div class="drop-sub">or click to browse — any format, up to 100MB</div>
+        </div>
+
+        <div class="file-preview" id="filePreview">
+          <div class="file-icon-box" id="fileIconBox"><i class="fas fa-file"></i></div>
+          <div class="file-meta">
+            <div class="file-name" id="fileName">—</div>
+            <div class="file-size" id="fileSize">—</div>
+          </div>
+          <button class="remove-btn" onclick="removeFile()" title="Remove file">✕</button>
+        </div>
+
+        <div class="row2 mt-20">
+          <div class="form-group mt-0">
+            <label>Expiry</label>
+            <select id="expiry">
+              <option value="1">1 hour</option>
+              <option value="24" selected>24 hours</option>
+              <option value="72">3 days</option>
+              <option value="168">7 days</option>
+            </select>
+          </div>
+          <div class="form-group mt-0">
+            <label>Max Downloads</label>
+            <input type="number" id="maxDownloads" value="1" min="1" max="100" placeholder="1">
+          </div>
+        </div>
+
+        <div class="progress-wrap" id="progressWrap">
+          <div class="progress-label">
+            <span id="progressLabel">Encrypting…</span>
+            <span id="progressPct">0%</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar" id="progressBar"></div>
+          </div>
+        </div>
+
+        <div class="result-card" id="uploadResult">
+          <div class="result-icon"><i class="fas fa-check-circle"></i></div>
+          <div class="result-title">File Encrypted & Stored!</div>
+          <div class="result-sub">Share this one-time code with the recipient. It expires automatically.</div>
+          <div class="code-display">
+            <div class="code-label">One-Time Access Code</div>
+            <div class="code-value" id="generatedCode">——</div>
+          </div>
+          <button class="copy-btn" onclick="copyCode()"><i class="fas fa-clipboard"></i> Copy Code</button>
+          <div class="expiry-info" id="expiryInfo">
+            <i class="fas fa-hourglass-half"></i> <span id="expiryText">Expires in 24 hours</span>
+            &nbsp;·&nbsp; <i class="fas fa-download"></i> <span id="maxDlText">1 download max</span>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" id="uploadBtn" onclick="uploadFile()" disabled>
+          <i class="fas fa-lock"></i> Encrypt & Upload File
+        </button>
+
+        <div class="security-badges">
+          <div class="sec-badge"><span class="dot"></span> AES-256 Encryption</div>
+          <div class="sec-badge"><span class="dot"></span> One-Time Code</div>
+          <div class="sec-badge"><span class="dot"></span> Auto-Expiry</div>
+          <div class="sec-badge"><span class="dot"></span> Zero-Knowledge</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DOWNLOAD PANEL -->
+    <div class="panel" id="panel-download">
+      <div class="card">
+        <div class="form-group mt-0">
+          <label>Enter Your Access Code</label>
+          <div class="code-input-wrap">
+            <input type="text" id="accessCode" placeholder="Paste your Access Code here"
+              oninput="this.value=this.value.trim()">
+          </div>
+        </div>
+
+        <div class="error-msg" id="downloadError"><i class="fas fa-times-circle"></i> Invalid or expired code. Please
+          try again.</div>
+
+        <div class="result-card" id="downloadResult">
+          <div class="result-icon"><i class="fas fa-box-open"></i></div>
+          <div class="result-title">File Ready!</div>
+          <div class="result-sub" id="dlFileMeta">—</div>
+          <button class="btn btn-primary btn-success" id="dlBtn" onclick="downloadFile()">
+            <i class="fas fa-download"></i> Decrypt & Download
+          </button>
+          <div class="expiry-info" id="dlExpiryInfo">
+            <i class="fas fa-hourglass-half"></i> <span id="dlExpiryText">—</span>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" id="lookupBtn" onclick="lookupFile()">
+          <i class="fas fa-search"></i> Unlock File
+        </button>
+
+        <div class="security-badges">
+          <div class="sec-badge"><span class="dot"></span> Decrypted Locally</div>
+          <div class="sec-badge"><span class="dot"></span> Code Invalid After Use</div>
+          <div class="sec-badge"><span class="dot"></span> No Account Needed</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VAULT PANEL -->
+    <div class="panel" id="panel-vault">
+      <div class="card">
+        <div class="vault-header">
+          <div>
+            <div class="vault-title">Stored Files</div>
+            <div class="vault-subtitle">Files stored in your browser session</div>
+          </div>
+          <button onclick="clearVault()" class="btn-clear">Clear All</button>
+        </div>
+        <div class="files-list" id="vaultList">
+          <div class="empty-state">No files uploaded yet.<br>Upload a file to see it here.</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Toast -->
+  <div class="toast" id="downloadToast">
+    <div class="toast-icon"><i class="fas fa-download"></i></div>
+    <div class="toast-body">
+      <div class="toast-title">File Downloaded!</div>
+      <div class="toast-sub" id="toastSub">Your file has been decrypted and saved.</div>
+    </div>
+    <button class="toast-close" onclick="hideToast()">✕</button>
+  </div>
+
+  <script>
+    const supabaseUrl = 'https://ndcwpcgpdtrfnfgiqpaj.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5kY3dwY2dwZHRyZm5mZ2lxcGFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5NjQ5MDUsImV4cCI6MjA5NDU0MDkwNX0.kMfel4zUwTwnlXZy79-_2r7CBqzwm0RmMYrijBSKwAg';
+    const _sb = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+    let toastTimer = null;
+
+    function showToast(fileName, remaining) {
+      const sub = remaining > 0
+        ? `"${fileName}" saved · ${remaining} download(s) left on this code`
+        : `"${fileName}" saved · Code has been invalidated`;
+      document.getElementById('toastSub').textContent = sub;
+      const toast = document.getElementById('downloadToast');
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(hideToast, 4000);
+    }
+
+    function hideToast() {
+      document.getElementById('downloadToast').classList.remove('show');
+    }
+
+    let selectedFile = null;
+
+    function bufferToBase64Url(buffer) {
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return window.btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    function base64UrlToBuffer(base64url) {
+      let base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+      while (base64.length % 4) {
+        base64 += '=';
+      }
+      const binary = window.atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return bytes.buffer;
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach((t, i) => {
+        t.classList.toggle('active', ['upload', 'download', 'vault'][i] === tab);
+      });
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('panel-' + tab).classList.add('active');
+    }
+
+    function onDragOver(e) {
+      e.preventDefault();
+      document.getElementById('dropzone').classList.add('dragover');
+    }
+    function onDragLeave() {
+      document.getElementById('dropzone').classList.remove('dragover');
+    }
+    function onDrop(e) {
+      e.preventDefault();
+      document.getElementById('dropzone').classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file) setFile(file);
+    }
+    function onFileSelect(e) {
+      const file = e.target.files[0];
+      if (file) setFile(file);
+    }
+
+    function setFile(file) {
+      selectedFile = file;
+      document.getElementById('filePreview').classList.add('show');
+      document.getElementById('fileName').textContent = file.name;
+      document.getElementById('fileSize').textContent = formatSize(file.size);
+      document.getElementById('fileIconBox').innerHTML = fileIcon(file.name);
+      document.getElementById('uploadBtn').disabled = false;
+      document.getElementById('uploadResult').classList.remove('show');
+      markStep(1);
+    }
+
+    function removeFile() {
+      selectedFile = null;
+      document.getElementById('filePreview').classList.remove('show');
+      document.getElementById('fileInput').value = '';
+      document.getElementById('uploadBtn').disabled = true;
+      resetSteps();
+    }
+
+    async function uploadFile() {
+      if (!selectedFile) return;
+
+      const expHrs = parseInt(document.getElementById('expiry').value);
+      const maxDl = parseInt(document.getElementById('maxDownloads').value) || 1;
+
+      const pw = document.getElementById('progressWrap');
+      pw.classList.add('show');
+      document.getElementById('uploadBtn').disabled = true;
+      document.getElementById('uploadResult').classList.remove('show');
+
+      try {
+        await animateProgress('Reading file…', 0, 25);
+        const buffer = await selectedFile.arrayBuffer();
+
+        await animateProgress('Generating hardware entropy…', 25, 45);
+        const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+
+        await animateProgress('AES-256-GCM Encryption…', 45, 70);
+        const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, buffer);
+
+        // Encrypt metadata to maintain Zero-Knowledge
+        const metaStr = JSON.stringify({ name: selectedFile.name, size: selectedFile.size, type: selectedFile.type });
+        const metaBuffer = new TextEncoder().encode(metaStr);
+        const encryptedMeta = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, metaBuffer);
+
+        await animateProgress('Uploading to Supabase Vault…', 70, 95);
+        const id = crypto.randomUUID();
+        const expiryMs = Date.now() + expHrs * 3600 * 1000;
+
+        // Upload to Storage
+        await _sb.storage.from('encrypted_vault').upload(id, new Blob([encrypted], { type: 'application/octet-stream' }));
+        await _sb.storage.from('encrypted_vault').upload(id + '_meta', new Blob([encryptedMeta], { type: 'application/octet-stream' }));
+
+        // Insert into Database
+        const { error: dbError } = await _sb.from('vault_registry').insert([{
+          id: id,
+          ttl_timestamp: expiryMs,
+          quota: maxDl
+        }]);
+
+        if (dbError) throw new Error(dbError.message);
+
+        await animateProgress('Synthesizing Access Code…', 95, 100);
+
+        const rawKey = await crypto.subtle.exportKey('raw', key);
+        const base64Key = bufferToBase64Url(rawKey);
+        const base64Iv = bufferToBase64Url(iv);
+
+        // Final code format: UUID # KEY # IV
+        const code = `${id}#${base64Key}#${base64Iv}`;
+
+        setTimeout(() => {
+          pw.classList.remove('show');
+
+          // Make sure the code breaks nicely in the UI
+          document.getElementById('generatedCode').style.wordBreak = 'break-all';
+          document.getElementById('generatedCode').style.fontSize = '0.85rem';
+          document.getElementById('generatedCode').textContent = code;
+
+          document.getElementById('expiryText').textContent = `Expires in ${expHrs} hour${expHrs > 1 ? 's' : ''}`;
+          document.getElementById('maxDlText').textContent = `${maxDl} download${maxDl > 1 ? 's' : ''} max`;
+          document.getElementById('uploadResult').classList.add('show');
+          markStep(2); markStep(3);
+        }, 400);
+
+      } catch (err) {
+        console.error(err);
+        alert('Encryption or Upload failed: ' + err.message);
+        pw.classList.remove('show');
+        document.getElementById('uploadBtn').disabled = false;
+      }
+    }
+
+    async function lookupFile() {
+      const code = document.getElementById('accessCode').value.trim();
+      const err = document.getElementById('downloadError');
+      const res = document.getElementById('downloadResult');
+
+      err.classList.remove('show');
+      res.classList.remove('show');
+
+      if (!code.includes('#')) {
+        err.innerHTML = '<i class="fas fa-times-circle"></i> Invalid Access Code Format.';
+        err.classList.add('show');
+        return;
+      }
+
+      const parts = code.split('#');
+      const id = parts[0];
+      const keyStr = parts[1];
+      const ivStr = parts[2];
+
+      const { data, error } = await _sb.from('vault_registry').select('*').eq('id', id).single();
+
+      if (error || !data) {
+        err.innerHTML = '<i class="fas fa-times-circle"></i> File not found or already purged.';
+        err.classList.add('show');
+        return;
+      }
+
+      if (Date.now() > data.ttl_timestamp || data.quota <= 0) {
+        err.innerHTML = '<i class="fas fa-clock"></i> This file has expired and been algorithmically purged.';
+        err.classList.add('show');
+        return;
+      }
+
+      try {
+        const { data: metaBlob, error: metaErr } = await _sb.storage.from('encrypted_vault').download(id + '_meta');
+        if (metaErr) throw new Error("Metadata missing");
+
+        const rawKey = base64UrlToBuffer(keyStr);
+        const iv = base64UrlToBuffer(ivStr);
+        const cryptoKey = await crypto.subtle.importKey('raw', rawKey, { name: 'AES-GCM' }, false, ['decrypt']);
+
+        const decryptedMetaBuffer = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, cryptoKey, await metaBlob.arrayBuffer());
+        const meta = JSON.parse(new TextDecoder().decode(decryptedMetaBuffer));
+
+        const remaining = Math.round((data.ttl_timestamp - Date.now()) / 60000);
+        document.getElementById('dlFileMeta').textContent = `${meta.name} · ${formatSize(meta.size)}`;
+        document.getElementById('dlExpiryText').textContent = `Expires in ${remaining} min · ${data.quota} download(s) left`;
+
+        // Store meta for download phase
+        window.activeDownloadMeta = { id, cryptoKey, iv, name: meta.name, type: meta.type, quota: data.quota };
+        res.classList.add('show');
+      } catch (e) {
+        console.error(e);
+        err.innerHTML = '<i class="fas fa-shield-alt"></i> Cryptographic Integrity Failure. Tampering detected.';
+        err.classList.add('show');
+      }
+    }
+
+    async function downloadFile() {
+      const meta = window.activeDownloadMeta;
+      if (!meta) return;
+
+      const btn = document.getElementById('dlBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Decrypting...';
+
+      try {
+        const { data: fileBlob, error: fileErr } = await _sb.storage.from('encrypted_vault').download(meta.id);
+        if (fileErr) throw new Error("File missing from vault");
+
+        const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: meta.iv }, meta.cryptoKey, await fileBlob.arrayBuffer());
+
+        const blob = new Blob([decrypted], { type: meta.type || 'application/octet-stream' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = meta.name;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        // Decrement quota in DB
+        const newQuota = meta.quota - 1;
+        await _sb.from('vault_registry').update({ quota: newQuota }).eq('id', meta.id);
+
+        showToast(meta.name, newQuota);
+
+        if (newQuota <= 0) {
+          // Trigger Algorithmic Purge
+          await _sb.storage.from('encrypted_vault').remove([meta.id, meta.id + '_meta']);
+          await _sb.from('vault_registry').delete().eq('id', meta.id);
+
+          document.getElementById('downloadResult').classList.remove('show');
+          const err = document.getElementById('downloadError');
+          err.innerHTML = '<i class="fas fa-fire"></i> Burn-After-Reading executed. File permanently destroyed.';
+          err.className = 'error-msg show js-success-msg';
+          err.style.color = '#10b981';
+          err.classList.add('show');
+        } else {
+          document.getElementById('dlExpiryText').textContent = `${newQuota} download(s) remaining`;
+          meta.quota = newQuota;
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-download"></i> Decrypt & Download';
+        }
+      } catch (e) {
+        console.error(e);
+        alert("Decryption failed: " + e.message);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-download"></i> Decrypt & Download';
+      }
+    }
+
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+    }
+
+    function fileIcon(name) {
+      const ext = name.split('.').pop().toLowerCase();
+      const map = {
+        pdf: '<i class="fas fa-file-pdf"></i>', doc: '<i class="fas fa-file-word"></i>', docx: '<i class="fas fa-file-word"></i>', xls: '<i class="fas fa-file-excel"></i>', xlsx: '<i class="fas fa-file-excel"></i>', ppt: '<i class="fas fa-file-powerpoint"></i>', pptx: '<i class="fas fa-file-powerpoint"></i>',
+        jpg: '<i class="fas fa-file-image"></i>', jpeg: '<i class="fas fa-file-image"></i>', png: '<i class="fas fa-file-image"></i>', gif: '<i class="fas fa-file-image"></i>', svg: '<i class="fas fa-file-image"></i>', mp4: '<i class="fas fa-file-video"></i>', mp3: '<i class="fas fa-file-audio"></i>',
+        zip: '<i class="fas fa-file-archive"></i>', rar: '<i class="fas fa-file-archive"></i>', '7z': '<i class="fas fa-file-archive"></i>', txt: '<i class="fas fa-file-alt"></i>', js: '<i class="fab fa-js"></i>', py: '<i class="fab fa-python"></i>', html: '<i class="fab fa-html5"></i>', css: '<i class="fab fa-css3-alt"></i>'
+      };
+      return map[ext] || '<i class="fas fa-file"></i>';
+    }
+
+    function animateProgress(label, from, to) {
+      return new Promise(resolve => {
+        document.getElementById('progressLabel').textContent = label;
+        let cur = from;
+        const step = () => {
+          cur = Math.min(cur + 1, to);
+          document.getElementById('progressBar').style.width = cur + '%';
+          document.getElementById('progressPct').textContent = cur + '%';
+          if (cur < to) setTimeout(step, 15);
+          else resolve();
+        };
+        step();
+      });
+    }
+
+    function copyCode() {
+      const code = document.getElementById('generatedCode').textContent;
+      navigator.clipboard.writeText(code).then(() => {
+        const btn = document.querySelector('.copy-btn');
+        btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        setTimeout(() => btn.innerHTML = '<i class="fas fa-clipboard"></i> Copy Code', 2000);
+      });
+    }
+
+    function markStep(n) {
+      document.getElementById('step' + n).classList.add('done');
+      const el = document.querySelector('#step' + n + ' .step-num');
+      if (el) el.textContent = '✓';
+    }
+
+    function resetSteps() {
+      [1, 2, 3].forEach(n => {
+        const s = document.getElementById('step' + n);
+        s.classList.remove('done');
+        s.querySelector('.step-num').textContent = n;
+      });
+    }
+  </script>
+
+</html>
